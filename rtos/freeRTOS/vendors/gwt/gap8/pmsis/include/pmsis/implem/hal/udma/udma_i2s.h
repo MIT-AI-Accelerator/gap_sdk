@@ -40,6 +40,7 @@ static inline void i2s_udma_channel_set(uint32_t device_id, udma_channel_e chann
                                         uint32_t l2buf, uint32_t size, uint32_t cfg)
 {
     udma_enqueue_channel(&(i2s(device_id)->udma), l2buf, size, cfg, channel);
+    //udma_enqueue_only_channel(&(i2s(device_id)->udma), l2buf, size, channel);
     //printf("I2S: %x %x %x %x %d\n", &(i2s(device_id)->udma), l2buf, size, cfg, channel);
 }
 
@@ -366,6 +367,13 @@ static inline void hal_i2s_filt_ch1_set(uint32_t device_id, uint16_t decimation,
 
 
 /*! UDMA. */
+static inline void hal_i2s_first_enqueue(uint32_t device_id, udma_channel_e channel,
+                                   uint32_t l2buf, uint32_t size, uint32_t cfg)
+{
+    //cfg |= UDMA_CORE_RX_CFG_EN(1);
+    udma_enqueue_only_channel(&(i2s(device_id)->udma), l2buf, size, channel);
+}
+
 static inline void hal_i2s_enqueue(uint32_t device_id, udma_channel_e channel,
                                    uint32_t l2buf, uint32_t size, uint32_t cfg)
 {

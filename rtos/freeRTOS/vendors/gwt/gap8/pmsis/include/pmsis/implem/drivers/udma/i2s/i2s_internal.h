@@ -37,6 +37,7 @@
  * Definitions
  ******************************************************************************/
 
+#define PI_I2S_IOCTL_SAMPLE_START 0x99
 struct i2s_itf_data_s
 {
     /* Best to use only one queue since both RX & TX can be used at the same time. */
