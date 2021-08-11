@@ -167,6 +167,65 @@ static uint8_t __pi_i2s_enqueue(struct i2s_itf_data_s *itf_data)
     return done;
 }
 
+static uint8_t __pi_i2s_first_enqueue(struct i2s_itf_data_s *itf_data)
+{
+    uint32_t device_id = itf_data->device_id;
+    uint32_t buffer = 0;
+    uint32_t size = 0;
+    uint32_t max_size = 0;
+    uint32_t size_enqueue = 0;
+    uint8_t done = 1;
+    if (itf_data->pending_size)
+    {
+        buffer = (uint32_t) itf_data->pending_buffer;
+        size = itf_data->pending_size;
+        done = 0;
+    }
+    else
+    {
+        size = itf_data->block_size;
+        if (!(itf_data->options & PI_I2S_OPT_MEM_SLAB))
+        {
+            uint32_t buffer_idx = itf_data->cur_buffer;
+            buffer = (uint32_t) itf_data->pingpong_buffers[buffer_idx];
+            itf_data->cur_buffer = buffer_idx ^ 1;
+        }
+        else
+        {
+            pi_mem_slab_alloc(itf_data->mem_slab, (void **) &buffer, 0);
+            if (buffer)
+            {
+                itf_data->ring_buffer[itf_data->ring_buffer_head++] = (void *) buffer;
+                if (itf_data->ring_buffer_head == itf_data->ring_buffer_nb_elem)
+                {
+                    itf_data->ring_buffer_head = 0;
+                }
+            }
+        }
+    }
+
+    if (buffer)
+    {
+        /* Max size is 64kB on GAP8 UDMA. */
+        max_size = (1 << 16) - 4;
+
+        if (size > max_size)
+        {
+            size_enqueue = max_size;
+            itf_data->pending_size = size - max_size;
+            itf_data->pending_buffer = (void *) (buffer + max_size);
+        }
+        else
+        {
+            size_enqueue = size;
+            itf_data->pending_size = 0;
+        }
+        /* Enqueue first in HW fifo. */
+        hal_i2s_first_enqueue(device_id, itf_data->i2s_id, buffer, size_enqueue, itf_data->udma_cfg);
+    }
+    return done;
+}
+
 static inline uint32_t __pi_i2s_clk_div(uint32_t i2s_freq)
 {
     uint32_t periph_freq = pi_freq_get(PI_FREQ_DOMAIN_FC);
@@ -197,8 +256,8 @@ static void __pi_i2s_resume(struct i2s_itf_data_s *itf_data)
     itf_data->fifo_head = NULL;
     itf_data->fifo_tail = NULL;
 
-    __pi_i2s_enqueue(itf_data);
-    __pi_i2s_enqueue(itf_data);
+    __pi_i2s_first_enqueue(itf_data);
+    __pi_i2s_first_enqueue(itf_data);
 
     /* Enable clock. */
     __pi_i2s_clock_enable(itf_data);
@@ -414,6 +473,11 @@ static void __pi_i2s_conf_get(struct i2s_itf_data_s *itf_data,
     conf->mem_slab            = itf_data->mem_slab;
 }
 
+static void __pi_i2s_sample_start(struct i2s_itf_data_s *itf_data)
+{
+    udma_enqueue_cfg_channel(&(i2s(itf_data->device_id)->udma), itf_data->udma_cfg);
+}
+
 /*******************************************************************************
  * Function implementation
  ******************************************************************************/
@@ -582,6 +646,10 @@ int32_t __pi_i2s_ioctl(struct i2s_itf_data_s *itf_data, uint32_t cmd, void *arg)
 
     case PI_I2S_IOCTL_CLOCK_DISABLE :
         __pi_i2s_clock_disable(itf_data);
+        break;
+
+    case PI_I2S_IOCTL_SAMPLE_START :
+        __pi_i2s_sample_start(itf_data);
         break;
 
     default :

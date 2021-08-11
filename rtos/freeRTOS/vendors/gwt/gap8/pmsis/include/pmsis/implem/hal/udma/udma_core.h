@@ -53,6 +53,57 @@ static inline void udma_enqueue_channel(udma_core_t *udma_struct, uint32_t addr,
     }
 }
 
+static inline void udma_enqueue_only_channel(udma_core_t *udma_struct, uint32_t addr,
+                                             uint32_t size, udma_channel_e channel)
+{
+    switch(channel)
+    {
+        // push to rx channel
+        case(RX_CHANNEL):
+            {
+                hal_write32(&udma_struct->rx_saddr,addr);
+                hal_write32(&udma_struct->rx_size,size);
+            }
+            break;
+        // push to tx channel
+        case(TX_CHANNEL):
+            {
+                hal_write32(&udma_struct->tx_saddr,addr);
+                hal_write32(&udma_struct->tx_size,size);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+static inline void udma_enqueue_cfg_channel(udma_core_t *udma_struct, uint32_t config)
+{
+    #if 1
+    hal_write32(&udma_struct->rx_cfg,config);
+    hal_write32(&udma_struct->tx_cfg,config);
+    #else
+    switch(channel)
+    {
+        // push to rx channel
+        case(RX_CHANNEL):
+            {
+                hal_write32(&udma_struct->rx_cfg,config);
+            }
+            break;
+        // push to tx channel
+        case(TX_CHANNEL):
+            {
+                hal_write32(&udma_struct->tx_cfg,config);
+            }
+            break;
+        default:
+            break;
+    }
+    #endif
+}
+
+
 static inline void udma_channel_clear(udma_core_t *udma, udma_channel_e channel)
 {
     switch (channel)
