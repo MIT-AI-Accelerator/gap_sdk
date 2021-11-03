@@ -52,6 +52,8 @@ class ReducerMixin(object):
             pout_shape = x_shape.copy()
         else:
             if node_opts.KeepDims():
+                # TODO - Might be safer here to insert a reshape before if the reduction axes contains
+                # an unspecified dimension to reshape that dimension to 1
                 pout_shape = [1 if idx in axes and dim is not None else dim for idx, dim in enumerate(x_shape)]
             else:
                 pout_shape = [dim for idx, dim in enumerate(x_shape) if idx not in axes]
